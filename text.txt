@@ -1,0 +1,8 @@
+total 168
+-rwxr-xr-x   1 alex  staff  33423 Feb  7 21:12 do
+-rw-r--r--   1 alex  staff     70 Feb  7 21:12 do.c
+-rwxr-xr-x   1 alex  staff  33425 Feb  7 21:22 main
+-rw-r--r--   1 alex  staff    184 Feb  7 21:35 main.c
+drwxr-xr-x@ 14 alex  staff    448 Feb  6 14:18 notes
+-rw-r--r--   1 alex  staff      0 Feb  7 21:43 text.txt
+-rw-r--r--   1 alex  staff    121 Feb  7 12:53 yash.c
