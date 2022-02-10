@@ -4,7 +4,7 @@ Process: OS concept
 job is a command given to a shell
 
 Job -> STOPPED | RUNNING
-Procerss -> Ready | Running | Waiting
+Process -> Ready | Running | Waiting
 
 ```
 $ progl | foo | bar > file
@@ -20,4 +20,4 @@ Struct job{
 };
 ```
 
-swtich job * jlist;
+switch job * jlist;

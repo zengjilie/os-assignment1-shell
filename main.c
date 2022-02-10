@@ -8,8 +8,7 @@
 int redirect(char input[])
 {
     // Seperate by whitespace
-    char *args[50]; //"string array"
-
+    char *args[1000]; //"string array"
     char *piece = strtok(input, " ");
     int i = 0;
     while (piece != NULL)
@@ -18,15 +17,29 @@ int redirect(char input[])
         piece = strtok(NULL, " ");
         i++;
     }
+    args[i] = NULL; // where to stop
 
-    //looping through the command piece
+    // looping through the command piece
     for (int j = 0; j < sizeof args / sizeof args[0]; j++)
     {
         if (args[j] == NULL)
         {
             break;
         }
+        // printf("%s\n", args[j]);
+        // encounter >  or < -> check if it has stdin && stdout
+
+        // if (strcmp(args[j], ">") == 0)
+        // {
+        //     printf("found >\n");
+        // }
+        // if (strcmp(args[j], "<") == 0)
+        // {
+        //     printf("found <\n");
+        // }
+
     }
+
     return 0;
 }
 

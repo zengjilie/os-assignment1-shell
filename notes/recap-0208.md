@@ -127,6 +127,7 @@ AvgResp = (0+1+2)/3 = 1
 
 RR favors interative jobs
 
+
 ### ALL OSs today use multi-level-feedback queue
 level 
 0   |_|->|_|->|_| RR in-level
@@ -136,3 +137,4 @@ level
 .
 .
 N-1
+
