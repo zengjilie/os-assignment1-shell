@@ -4,19 +4,36 @@
 #include <fcntl.h>
 #include <string.h>
 
-//fileDirection module
-int fileDirection()
+// fileDirection module
+int redirect(char input[])
 {
-    printf("test\n");
+    // Seperate by whitespace
+    char *args[50]; //"string array"
+
+    char *piece = strtok(input, " ");
+    int i = 0;
+    while (piece != NULL)
+    {
+        args[i] = piece;
+        piece = strtok(NULL, " ");
+        i++;
+    }
+
+    //looping through the command piece
+    for (int j = 0; j < sizeof args / sizeof args[0]; j++)
+    {
+        if (args[j] == NULL)
+        {
+            break;
+        }
+    }
     return 0;
 }
 
-
-
-//pipe
-int pipe(){
-
-}
+// pipe
+// int pipe()
+// {
+// }
 
 int main()
 {
@@ -25,30 +42,28 @@ int main()
         // yash shell
         printf("yash$ ");
 
-        // test run
-        char text[100];
-        fgets(text, 100, stdin);
-        text[strlen(text) - 1] = '\0';
+        // take user input
+        char input[100];
+        fgets(input, 100, stdin);
+        input[strlen(input) - 1] = '\0';
 
-        // input parsing -> checkout what's the command you want to exec
+        // input parsing
 
-        // Command is fileDirection?
-        int isFileDir = 0;
-        for (int i = 0; i < strlen(text); i++)
+        // Redirection
+        int isRedirection = 0;
+        for (int i = 0; i < strlen(input); i++)
         {
-            if (text[i] == '>')
+            if (input[i] == '>' || input[i] == '<')
             {
-                isFileDir = 1;
+                isRedirection = 1;
             }
         }
-        if(isFileDir == 0){
-            printf("%s\n",text);
-        }else{
-            fileDirection();
+        if (isRedirection == 1)
+        {
+            redirect(input);
         }
 
-
-        // Command is pipe?
+        // Pipe
     }
 
     return 0;
