@@ -1,1 +1,8 @@
-.	..	man	do	do.c	notes	main.c	.gitignore	.git	.vscode	main	
+do
+do.c
+main
+main.c
+man
+notes
+text.txt
+text2.txt

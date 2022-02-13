@@ -7,22 +7,20 @@
 
 int main(int argc, char *argv[])
 {
-    FILE *fPointer;
-    fPointer = fopen("text.txt", "r");
-    char singleLine[150];
-    if (fPointer == NULL) // error handling
-    {
-        printf("No such file in current directory");
-    }
-    else
-    {
-        while (!feof(fPointer))
-        {
-            fgets(singleLine, 150, fPointer);
-            printf("%s", singleLine);
-        }
-        fclose(fPointer);
-    }
+    int file = open("text4.txt", O_WRONLY);
+    dup2(file, STDERR_FILENO);
+    fprintf(stderr,"err");
+    // int fd[2];
+    // int p = pipe(fd);
+
+    // int pid1 = fork();
+    // if (pid1 == 0)
+    // {
+    //     dup2(fd[1], STDOUT_FILENO);
+    //     // execlp("ls","ls",NULL);
+    //     printf("child text");
+    // }
+    // waitpid(pid1, NULL, 0);
     // int id = -1;
     // if (id != 0)
     // {

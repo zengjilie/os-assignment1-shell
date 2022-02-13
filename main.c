@@ -28,71 +28,13 @@ int listFiles()
     return 0;
 }
 
-// cat
-
-// fileDirection module
-// int redirect(char *args[])
-// {
-//     // looping through the args
-//     for (int j = 0; j < sizeof args / sizeof args[0]; j++)
-//     {
-//         if (args[j] == NULL)
-//         {
-//             break;
-//         }
-//         // printf("%s\n", args[j]);
-//         // check operator
-//         int isGreater = strcmp(args[j], ">");
-//         int isSmaller = strcmp(args[j], "<");
-//         int isTwoGreater = strcmp(args[j], "2>");
-
-//         if (isGreater == 0)
-//         {
-//             if (args[j - 1] != NULL && args[j + 1] != NULL) //_ > _
-//             {
-//                 int file = open(args[j], O_CREAT | O_WRONLY | O_TRUNC);
-//             }
-//             else
-//             {
-//                 break;
-//             }
-//         }
-//         else if (isSmaller == 0)
-//         {
-//             if (args[j - 1] != NULL && args[j + 1] != NULL)
-//             {
-//             }
-//             else
-//             {
-//                 break;
-//             }
-//         }
-//         else if (isTwoGreater == 0)
-//         {
-//             if (args[j - 1] != NULL && args[j + 1] != NULL)
-//             {
-//             }
-//             else
-//             {
-//                 break;
-//             }
-//         }
-//     }
-
-//     return 0;
-// }
-
-// pipe
-// int pipe()
-// {
-// }
-
 int main()
 {
     while (1)
     {
         // Start
         printf("# ");
+
         // User input
         char input[100];
         fgets(input, 100, stdin);
@@ -113,6 +55,7 @@ int main()
         // checking all args
 
         int id = fork();
+        char err[100];
         if (id == 0)
         {
             for (int j = 0; j < sizeof args / sizeof args[0]; j++)
@@ -121,36 +64,46 @@ int main()
                 {
                     break;
                 }
-                else if (strcmp(args[j], "ls") == 0) // list files
+                else if (strcmp(args[j], "ls") == 0) // ls
                 {
                     // hasLs = 1;
                     listFiles();
                 }
-                else if (strcmp(args[j], "cat") == 0)// jump over <
+                else if (strcmp(args[j], "cat") == 0) // cat
                 {
-                    FILE *fPointer;
-                    if (strcmp(args[j + 1], "<") == 0)
+                    char buffer[200];
+                    int file;
+                    if (strcmp(args[j + 1], "<") == 0) // cat < __
                     {
-                        fPointer = fopen(args[j + 2], "r");
+                        file = open(args[j + 2], O_RDONLY);
                         j++;
-                    }else{
-                        fPointer = fopen(args[j + 1], "r");
                     }
-                    char singleLine[150];
-                    if (fPointer == NULL) // error handling
+                    else if (args[j + 1] == NULL) // cat
                     {
-                        printf("No such file in current directory");
+                        file = -1;
                     }
-                    else
+                    else // cat __
                     {
-                        while (!feof(fPointer))
+                        file = open(args[j + 1], O_RDONLY);
+                    }
+
+                    if (file == -1) // open file fail
+                    {
+                        // printf("");
+                        strcpy(err,"No such file in current directory");
+                    }
+                    else // open successfully
+                    {
+                        dup2(file, STDIN_FILENO);
+                        while (fgets(buffer, sizeof(buffer), stdin)) // print stdin
                         {
-                            fgets(singleLine, 150, fPointer);
-                            printf("%s", singleLine);
+                            printf("%s", buffer);
                         }
+                        close(file);
                     }
                 }
-                else if (strcmp(args[j], "<") == 0)
+
+                else if (strcmp(args[j], "<") == 0)// <
                 {
                     // hasRedir = 1;
                     if (args[j + 1] == NULL || strcmp(args[j + 1], "ls") == 0 || strcmp(args[j + 1], "cat") == 0)
@@ -170,26 +123,7 @@ int main()
                     }
                 }
 
-                else if (strcmp(args[j], ">") == 0)
-                {
-                    // hasRedir = 1;
-                    if (args[j + 1] == NULL || strcmp(args[j + 1], "ls") == 0 || strcmp(args[j + 1], "cat") == 0)
-                    {
-                        break;
-                    }
-                    else
-                    {
-                        int file = open(args[j + 1], O_CREAT | O_TRUNC | O_WRONLY);
-                        if (file == -1)
-                        {
-                            break;
-                        }
-                        dup2(file, STDOUT_FILENO);
-                        close(file);
-                    }
-                }
-
-                else if (strcmp(args[j], "2>") == 0)
+                else if (strcmp(args[j], ">") == 0)// >
                 {
                     // hasRedir = 1;
                     if (args[j + 1] == NULL || strcmp(args[j + 1], "ls") == 0 || strcmp(args[j + 1], "cat") == 0)
@@ -204,6 +138,27 @@ int main()
                             break;
                         }
                         dup2(file, STDERR_FILENO);
+                        close(file);
+                    }
+                }
+
+                else if (strcmp(args[j], "2>") == 0) // 2>
+                {
+                    // hasRedir = 1;
+                    if (args[j + 1] == NULL || strcmp(args[j + 1], "ls") == 0 || strcmp(args[j + 1], "cat") == 0)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        int file = open(args[j + 1], O_CREAT | O_TRUNC | O_WRONLY);
+                        if (file == -1)
+                        {
+                            break;
+                        }
+                        dup2(file, STDERR_FILENO);
+                        fprintf(stderr,"%s",err);
+                        close(file);
                     }
                 }
                 else
@@ -214,12 +169,14 @@ int main()
                 if (strcmp(args[j], "|") == 0)
                 {
                     int fd[2];
-                    if(pipe(fd) == -1){
-
+                    if (pipe(fd) == -1)
+                    {
+                        break;
                     }
-
+                    if (id == 0)
+                    {
+                    }
                 }
-                printf("%d",j);
             }
             // printf("\n");
             break;
@@ -229,23 +186,6 @@ int main()
             wait(NULL);
             printf("\n");
         }
-
-        // list
-        // if (hasLs== 1 && hasRedir== 0)
-        // {
-        //     listFiles();
-        // }
-
-        // // Redirection
-        // if (hasLs== 1 && hasRedir== 1)
-        // {
-        //     redirect(args);
-        // }
-
-        // // Pipe
-        // if(hasPipe){
-        //     doPipe(args);
-        // }
     }
 
     return 0;

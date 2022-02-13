@@ -1,1 +1,1 @@
-.	..	man	do	do.c	notes	main.c	.gitignore	.git	.vscode	main	
+.	..	man	do	do.c	notes	main.c	.gitignore	text2.txt	text.txt	.git	.vscode	main	
