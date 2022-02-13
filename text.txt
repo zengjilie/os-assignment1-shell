@@ -1,0 +1,1 @@
+.	..	man	do	do.c	notes	main.c	.gitignore	.git	.vscode	main	
