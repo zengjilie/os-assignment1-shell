@@ -4,16 +4,56 @@
 #include <unistd.h>
 #include <fcntl.h>
 #include <dirent.h>
-
+#include <readline/readline.h>
+#include <readline/history.h>
 int main(int argc, char *argv[])
 {
-    int file = open("text4.txt", O_WRONLY);
-    dup2(file, STDERR_FILENO);
-    fprintf(stderr,"err");
-    // int fd[2];
-    // int p = pipe(fd);
 
-    // int pid1 = fork();
+    // for (int i = 0; i < 4; i++)
+    // {
+    //     printf("%d\n",i);
+    //     if(i == 2){
+    //         int id1 = fork();
+    //         if(id1 == 0){
+    //             printf("hello from child1\n");
+    //         }else{
+    //             wait(NULL);
+    //         }
+    //     }
+    // }
+    // int i = 0;
+    // for (i = 0; i < 4; i++)
+    // {
+    //     printf("%d", i);
+    //     // if(i == 2){
+    //     //     int id1 = fork();
+    //     //     if(id1 == 0){
+    //     //         printf("hello from child1\n");
+    //     //     }else{
+    //     //         wait(NULL);
+    //     //     }
+    //     // }
+    // }
+
+    int fd[2];
+    pipe(fd);
+
+    int id = fork();
+    if (id == 0)
+    {
+        dup2(fd[0], STDIN_FILENO);
+        close(fd[1]);
+        execlp("cat","cat",NULL);
+        exit(0);
+    }
+    else
+    {
+        dup2(fd[1], STDOUT_FILENO);
+        close(fd[0]);
+        execlp("ls","ls",NULL);
+        wait(NULL);
+    }
+
     // if (pid1 == 0)
     // {
     //     dup2(fd[1], STDOUT_FILENO);

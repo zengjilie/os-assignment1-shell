@@ -5,187 +5,219 @@
 #include <fcntl.h>
 #include <string.h>
 #include <dirent.h>
-
-// ls
-int listFiles()
-{
-    DIR *dir = opendir(".");
-    if (dir == NULL)
-    {
-        return 1;
-    }
-
-    struct dirent *entity;
-    entity = readdir(dir);
-    while (entity != NULL)
-    {
-        printf("%s\t", entity->d_name);
-        entity = readdir(dir);
-    }
-
-    // printf("\n");
-    closedir(dir);
-    return 0;
-}
+#include <readline/readline.h>
+#include <readline/history.h>
 
 int main()
 {
     while (1)
     {
         // Start
-        printf("# ");
-
         // User input
-        char input[100];
-        fgets(input, 100, stdin);
-        input[strlen(input) - 1] = '\0';
+        char *input;
+        input = readline("# ");
 
-        // Parsing input args
+        // seperate args by space
         char *args[100]; //"string array"
         char *piece = strtok(input, " ");
-        int i = 0;
+        int p = 0;
         while (piece != NULL)
         {
-            args[i] = piece;
+            args[p] = piece;
             piece = strtok(NULL, " ");
-            i++;
+            p++;
         }
-        args[i] = NULL; // manually add null
+        args[p] = NULL; // manually add null
 
-        // checking all args
+        int hasPipe = 0; // check if has pipe
+        for (int i = 0; i < sizeof args / sizeof args[0]; i++)
+        {
+            if (args[i] == NULL) // stop
+            {
+                break;
+            }
+            if (strcmp(args[i], "|") == 0)
+            {
+                hasPipe = 1;
+            }
+        }
 
-        int id = fork();
-        char err[100];
+        int id = fork(); // start process
         if (id == 0)
         {
-            for (int j = 0; j < sizeof args / sizeof args[0]; j++)
+            // if there is no pipe, then only one process will be executed
+            if (hasPipe == 0)
             {
-                if (args[j] == NULL) // stop
+                for (int i = 1; i < sizeof args / sizeof args[0]; i++)
                 {
-                    break;
-                }
-                else if (strcmp(args[j], "ls") == 0) // ls
-                {
-                    // hasLs = 1;
-                    listFiles();
-                }
-                else if (strcmp(args[j], "cat") == 0) // cat
-                {
-                    char buffer[200];
-                    int file;
-                    if (strcmp(args[j + 1], "<") == 0) // cat < __
-                    {
-                        file = open(args[j + 2], O_RDONLY);
-                        j++;
-                    }
-                    else if (args[j + 1] == NULL) // cat
-                    {
-                        file = -1;
-                    }
-                    else // cat __
-                    {
-                        file = open(args[j + 1], O_RDONLY);
-                    }
-
-                    if (file == -1) // open file fail
-                    {
-                        // printf("");
-                        strcpy(err,"No such file in current directory");
-                    }
-                    else // open successfully
-                    {
-                        dup2(file, STDIN_FILENO);
-                        while (fgets(buffer, sizeof(buffer), stdin)) // print stdin
-                        {
-                            printf("%s", buffer);
-                        }
-                        close(file);
-                    }
-                }
-
-                else if (strcmp(args[j], "<") == 0)// <
-                {
-                    // hasRedir = 1;
-                    if (args[j + 1] == NULL || strcmp(args[j + 1], "ls") == 0 || strcmp(args[j + 1], "cat") == 0)
+                    // end of args
+                    if (args[i] == NULL)
                     {
                         break;
                     }
-                    else
+
+                    // file direction
+                    if (strcmp(args[i], ">") == 0) // >
                     {
-                        int file = open(args[j + 1], O_RDONLY);
+                        int file = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
                         if (file == -1)
                         {
-                            printf("File doesn't exist in current directory");
-                            break;
+                        }
+                        dup2(file, STDOUT_FILENO);
+                    }
+                    else if (strcmp(args[i], "<") == 0) // <
+                    {
+                        int file = open(args[i + 1], O_RDONLY);
+                        if (file == -1)
+                        {
                         }
                         dup2(file, STDIN_FILENO);
-                        close(file);
+                    }
+                    else if (strcmp(args[i - 1], "cat") == 0)
+                    {
+                        int file = open(args[i], O_RDONLY); // cat file
+                        if (file == -1)
+                        {
+                        }
+                        dup2(file, STDIN_FILENO);
+                    }
+                }
+                execlp(args[0], args[0], NULL);
+                exit(0);
+            }
+            else if (hasPipe == 1) // has pipe
+            {
+                // seperate args between left | right
+                char *leftArgs[100];
+                char *rightArgs[100];
+                int lp = 0;
+                int rp = 0;
+                int partition = 0;
+                for (int i = 0; i < sizeof args / sizeof args[0]; i++)
+                {
+                    if (args[i] == NULL)
+                    {
+                        rightArgs[rp] = NULL;
+                        break;
+                    }
+
+                    if (strcmp(args[i], "|") == 0)
+                    { // reached |
+                        partition = 1;
+                        leftArgs[lp] = NULL;//important
+                        continue;
+                    }
+
+                    if (partition == 0) // haven't reach |
+                    {
+                        leftArgs[lp] = args[i];
+                        lp++;
+                    }
+                    else if (partition == 1)
+                    { // reached |
+                        rightArgs[rp] = args[i];
+                        rp++;
                     }
                 }
 
-                else if (strcmp(args[j], ">") == 0)// >
+                //pipe
+                int fd[2];
+                // error handling
+                //  if(pipe(fd) );
+                pipe(fd);
+                int id2 = fork();
+                if (id2 == 0) // child
                 {
-                    // hasRedir = 1;
-                    if (args[j + 1] == NULL || strcmp(args[j + 1], "ls") == 0 || strcmp(args[j + 1], "cat") == 0)
+                    dup2(fd[0], STDIN_FILENO);
+                    close(fd[1]);
+                    // execute all right args
+                    for (int i = 1; i < sizeof rightArgs / sizeof rightArgs[0]; i++)
                     {
-                        break;
-                    }
-                    else
-                    {
-                        int file = open(args[j + 1], O_CREAT | O_TRUNC | O_WRONLY);
-                        if (file == -1)
+                        // end of args
+                        if (rightArgs[i] == NULL)
                         {
                             break;
                         }
-                        dup2(file, STDERR_FILENO);
-                        close(file);
-                    }
-                }
 
-                else if (strcmp(args[j], "2>") == 0) // 2>
-                {
-                    // hasRedir = 1;
-                    if (args[j + 1] == NULL || strcmp(args[j + 1], "ls") == 0 || strcmp(args[j + 1], "cat") == 0)
-                    {
-                        break;
+                        // file direction
+                        if (strcmp(rightArgs[i], ">") == 0) // >
+                        {
+                            int file = open(rightArgs[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
+                            if (file == -1)
+                            {
+                            }
+                            dup2(file, STDOUT_FILENO);
+                        }
+                        else if (strcmp(rightArgs[i], "<") == 0) // <
+                        {
+                            int file = open(rightArgs[i + 1], O_RDONLY);
+                            if (file == -1)
+                            {
+                            }
+                            dup2(file, STDIN_FILENO);
+                        }
+                        else if (strcmp(rightArgs[i - 1], "cat") == 0)
+                        {
+                            int file = open(rightArgs[i], O_RDONLY); // cat file
+                            if (file == -1)
+                            {
+                            }
+                            dup2(file, STDIN_FILENO);
+                        }
                     }
-                    else
+                    execlp(rightArgs[0], rightArgs[0], NULL);
+                    exit(0);
+                }
+                else // parent
+                {
+                    dup2(fd[1], STDOUT_FILENO);
+                    close(fd[0]);
+                    // execue all left args
+                    for (int i = 1; i < sizeof leftArgs / sizeof leftArgs[0]; i++)
                     {
-                        int file = open(args[j + 1], O_CREAT | O_TRUNC | O_WRONLY);
-                        if (file == -1)
+                        // end of args
+                        if (leftArgs[i] == NULL)
                         {
                             break;
                         }
-                        dup2(file, STDERR_FILENO);
-                        fprintf(stderr,"%s",err);
-                        close(file);
-                    }
-                }
-                else
-                {
-                    printf("");
-                }
 
-                if (strcmp(args[j], "|") == 0)
-                {
-                    int fd[2];
-                    if (pipe(fd) == -1)
-                    {
-                        break;
+                        // file direction
+                        if (strcmp(leftArgs[i], ">") == 0) // >
+                        {
+                            int file = open(leftArgs[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
+                            if (file == -1)
+                            {
+                            }
+                            dup2(file, STDOUT_FILENO);
+                        }
+                        else if (strcmp(leftArgs[i], "<") == 0) // <
+                        {
+                            int file = open(leftArgs[i + 1], O_RDONLY);
+                            if (file == -1)
+                            {
+                            }
+                            dup2(file, STDIN_FILENO);
+                        }
+                        else if (strcmp(leftArgs[i - 1], "cat") == 0)
+                        {
+                            int file = open(leftArgs[i], O_RDONLY); // cat file
+                            if (file == -1)
+                            {
+                            }
+                            dup2(file, STDIN_FILENO);
+                        }
                     }
-                    if (id == 0)
-                    {
-                    }
+                    execlp(leftArgs[0], leftArgs[0], NULL);
+                    wait(NULL);
                 }
             }
-            // printf("\n");
-            break;
         }
         else
         {
+            // parent wait for child
             wait(NULL);
-            printf("\n");
         }
+       
     }
 
     return 0;

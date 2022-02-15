@@ -1,8 +1,0 @@
-do
-do.c
-main
-main.c
-man
-notes
-text.txt
-text2.txt

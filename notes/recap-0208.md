@@ -97,7 +97,11 @@ AvgTRT = (100 + (110 - 10) + (120 - 10))/3 = 310/3 =
 
 Relax "Run to completion" assumption -> prempt a job
 
-0 
+run 10 unit time first
+
+context switch
+    V
+0   10
 |-A-|-B-|-C-|---A---|
 A   A90 A90 A90
     B10 C10
