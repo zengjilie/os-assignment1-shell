@@ -7,9 +7,28 @@
 #include <dirent.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <signal.h>
+
+// sigint tracker
+int isSigint = 0;
+void sigintHandler(int sig)
+{
+    isSigint = 1;
+}
+
+// sigtstp tracker
+int isSigtstp = 0;
+void sigtstpHandler(int sig)
+{
+    isSigtstp = 1;
+}
 
 int main()
 {
+    // signal handling
+    signal(SIGINT, sigintHandler);
+    signal(SIGTSTP, sigtstpHandler);
+
     while (1)
     {
         // Start
@@ -75,11 +94,14 @@ int main()
                     }
                     else if (strcmp(args[i - 1], "cat") == 0)
                     {
-                        int file = open(args[i], O_RDONLY); // cat file
+                        int file = open(args[i], O_RDONLY); // cat + file
                         if (file == -1)
                         {
                         }
                         dup2(file, STDIN_FILENO);
+                    }
+                    else if (strcmp(args[i], "&") == 0) // run in bg
+                    { 
                     }
                 }
                 execlp(args[0], args[0], NULL);
@@ -104,7 +126,7 @@ int main()
                     if (strcmp(args[i], "|") == 0)
                     { // reached |
                         partition = 1;
-                        leftArgs[lp] = NULL;//important
+                        leftArgs[lp] = NULL; // important
                         continue;
                     }
 
@@ -120,7 +142,7 @@ int main()
                     }
                 }
 
-                //pipe
+                // pipe
                 int fd[2];
                 // error handling
                 //  if(pipe(fd) );
@@ -214,10 +236,30 @@ int main()
         }
         else
         {
-            // parent wait for child
-            wait(NULL);
+            // Sigint
+            if (isSigint == 1)
+            {
+                kill(id, SIGKILL);
+            }
+
+            if (isSigtstp == 1)
+            {
+                kill(id, SIGTSTP);
+            }
+            waitpid(id, NULL, WUNTRACED);
+
+            if (isSigint == 1)
+            {
+                printf("\n");
+            }
+
+            if (isSigtstp == 1)
+            {
+                printf("\n");
+            }
+            isSigtstp = 0;
+            isSigint = 0;
         }
-       
     }
 
     return 0;

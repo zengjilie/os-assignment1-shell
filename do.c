@@ -6,53 +6,87 @@
 #include <dirent.h>
 #include <readline/readline.h>
 #include <readline/history.h>
+#include <signal.h>
+
+int isSigint = 0;
+int isSigtstp = 0;
+void sigintHandler(int sig)
+{
+    isSigint = 1;
+}
+
+void sigtstpHandler(int sig)
+{
+    isSigtstp = 1;
+}
+
+typedef struct
+{
+    char name[50];
+} animal;
+
 int main(int argc, char *argv[])
 {
-
-    // for (int i = 0; i < 4; i++)
+    animal set[100];
+    animal cat1 = {"blackCat"};
+    animal cat2 = {"yellowCat"};
+    set[0] = cat1;
+    set[1] = cat2;
+    printf("cat1 name is: %s\n", set[0].name);
+    printf("cat2 name is: %s\n", set[1].name);
+    // while (1)
     // {
-    //     printf("%d\n",i);
-    //     if(i == 2){
-    //         int id1 = fork();
-    //         if(id1 == 0){
-    //             printf("hello from child1\n");
-    //         }else{
-    //             wait(NULL);
-    //         }
+    //     sleep(2);
+    //     printf("wait\n");
+    // }
+
+    // int id = fork();
+    // if (id == 0)
+    // {
+    //     while (1)
+    //     {
+    //         sleep(2);
+    //         printf("wait\n");
     //     }
     // }
-    // int i = 0;
-    // for (i = 0; i < 4; i++)
+    // else
     // {
-    //     printf("%d", i);
-    //     // if(i == 2){
-    //     //     int id1 = fork();
-    //     //     if(id1 == 0){
-    //     //         printf("hello from child1\n");
-    //     //     }else{
-    //     //         wait(NULL);
-    //     //     }
+    //     // signal(SIGINT, sigintHandler);
+    //     // if (isSigint == 1)
+    //     // {
+    //     //     kill(id, SIGINT);
     //     // }
+    //     signal(SIGTSTP, sigtstpHandler);
+    //     if (isSigtstp == 1)
+    //     {
+    //         kill(id, SIGTSTP);
+    //     }
+    //     waitpid(id, NULL,WUNTRACED);
+    //     while (1)
+    //     {
+    //         sleep(2);
+    //         printf("parent sleep\n");
+    //     }
     // }
 
-    int fd[2];
-    pipe(fd);
+    // int fd[2];
+    // pipe(fd);
 
-    int id = fork();
-    if (id == 0)
-    {
-        dup2(fd[0], STDIN_FILENO);
-        close(fd[1]);
-        execlp("cat","cat",NULL);
-        exit(0);
-    }
-    else
-    {
-        dup2(fd[1], STDOUT_FILENO);
-        close(fd[0]);
-        execlp("ls","ls",NULL);
-        wait(NULL);
-    }
+    // int id = fork();
+    // if (id == 0)
+    // {
+    //     dup2(fd[0], STDIN_FILENO);
+    //     close(fd[1]);
+    //     execlp("cat","cat",NULL);
+    //     exit(0);
+    // }
+    // else
+    // {
+    //     dup2(fd[1], STDOUT_FILENO);
+    //     close(fd[0]);
+    //     execlp("ls","ls",NULL);
+    //     wait(NULL);
+    // }
 
     // if (pid1 == 0)
     // {
