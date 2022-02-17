@@ -25,15 +25,22 @@ typedef struct
     char name[50];
 } animal;
 
+int jobsCount = 2;
+
 int main(int argc, char *argv[])
 {
-    animal set[100];
-    animal cat1 = {"blackCat"};
-    animal cat2 = {"yellowCat"};
-    set[0] = cat1;
-    set[1] = cat2;
-    printf("cat1 name is: %s\n", set[0].name);
-    printf("cat2 name is: %s\n", set[1].name);
+    execlp("sleep","sleep","5",NULL);
+    // animal set[100];
+    // animal cat1 = {"blackCat"};
+    // animal cat2 = {"yellowCat"};
+    // set[0] = cat1;
+    // set[1] = cat2;
+
+    // for (int i = 0; i < jobsCount; i++)
+    // {
+    //     printf("cat1 name is: %s\n", set[i].name);
+    // }
+
     // while (1)
     // {
     //     sleep(2);

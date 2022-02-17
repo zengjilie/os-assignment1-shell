@@ -9,6 +9,6 @@
 #include <signal.h>
 
 int main(){
-    execlp("jobs","jobs",NULL);
+    execlp("fg","fg",NULL);
     return 0;
 }

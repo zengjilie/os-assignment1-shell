@@ -9,19 +9,36 @@
 #include <readline/history.h>
 #include <signal.h>
 
-// sigint tracker
+// == Global variables ==
+// Sigint
 int isSigint = 0;
 void sigintHandler(int sig)
 {
     isSigint = 1;
 }
 
-// sigtstp tracker
+// Sigtstp
 int isSigtstp = 0;
 void sigtstpHandler(int sig)
 {
     isSigtstp = 1;
 }
+
+// Jobs data type
+typedef struct
+{
+    // index -> [1]
+    // current job -> -/+
+    // state -> Running/Stopped
+    // name of command -> sleep 5 &
+    int pid;
+    char index[10];
+    char nextFg;
+    char state[50];
+    char command[100];
+} job;
+// Job Count
+int jobCount = 0;
 
 int main()
 {
@@ -29,14 +46,16 @@ int main()
     signal(SIGINT, sigintHandler);
     signal(SIGTSTP, sigtstpHandler);
 
+    // Jobs recorder
+    job allJobs[50];
+
     while (1)
     {
-        // Start
-        // User input
+        // == Input Parsing ==
+
         char *input;
         input = readline("# ");
 
-        // seperate args by space
         char *args[100]; //"string array"
         char *piece = strtok(input, " ");
         int p = 0;
@@ -46,9 +65,13 @@ int main()
             piece = strtok(NULL, " ");
             p++;
         }
-        args[p] = NULL; // manually add null
+        args[p] = NULL; // Stop pointer
 
-        int hasPipe = 0; // check if has pipe
+        // Checkers
+        int hasPipe = 0;       // Pipe checker
+        int hasBackground = 0; // Background checker
+        int hasSleep = 0; //sleep checker
+
         for (int i = 0; i < sizeof args / sizeof args[0]; i++)
         {
             if (args[i] == NULL) // stop
@@ -59,9 +82,19 @@ int main()
             {
                 hasPipe = 1;
             }
+            if (strcmp(args[i], "&") == 0)
+            {
+                hasBackground = 1;
+            }
+            if (strcmp(args[i], "sleep") == 0)
+            {
+                hasSleep = 1;
+            }
         }
 
-        int id = fork(); // start process
+        //== Start Process ==
+
+        int id = fork();
         if (id == 0)
         {
             // if there is no pipe, then only one process will be executed
@@ -75,7 +108,7 @@ int main()
                         break;
                     }
 
-                    // file direction
+                    //== File direction ==
                     if (strcmp(args[i], ">") == 0) // >
                     {
                         int file = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
@@ -100,14 +133,61 @@ int main()
                         }
                         dup2(file, STDIN_FILENO);
                     }
+
+                    // == Jobs control ==
+
                     else if (strcmp(args[i], "&") == 0) // run in bg
-                    { 
+                    {
+                        // disable waitpid
+                    }
+                    else if (strcmp(args[i], "fg" == 0))
+                    {
+                        // send SIGCONT to the most recent job  -> bring it to the foreground
+                    }
+                    else if (strcmp(args[i], "" == 0))
+                    {
                     }
                 }
-                execlp(args[0], args[0], NULL);
+
+                // == Execlp ==
+
+                if (strcmp(args[0], "jobs") == 0) // jobs -> shell command
+                {
+                    // print all the jobs
+                    for (int i = 0; i < jobCount; i++)
+                    {
+                        printf("%s\t%c\t%s\t\t%s\n", allJobs[i].index, allJobs[i].nextFg, allJobs[i].state, allJobs[i].command);
+                    }
+                }
+                else if (strcmp(args[0], "fg") == 0) // fg -> send SIGCONT to the most recent job
+                {
+                    kill(allJobs[jobCount].pid, SIGCONT);
+                }
+                else
+                {
+                    // == Construct a job ==
+                    char index[10];
+                    index[0] = '[';
+                    index[1] = jobCount + '0';
+                    index[2] = ']';
+
+                    job NewJob;
+                    NewJob.pid = getpid();
+                    strcpy(NewJob.index, index);
+                    NewJob.nextFg = '+';
+                    strcpy(NewJob.state, "Running");
+                    strcpy(NewJob.command, input);
+
+                    // == Executable ==
+                    execlp(args[0], args[0], NULL);
+                }
+
                 exit(0);
             }
-            else if (hasPipe == 1) // has pipe
+
+            // == pipe ==
+
+            else if (hasPipe == 1)
             {
                 // seperate args between left | right
                 char *leftArgs[100];
@@ -246,7 +326,11 @@ int main()
             {
                 kill(id, SIGTSTP);
             }
-            waitpid(id, NULL, WUNTRACED);
+
+            if (hasBackground != 1)
+            {
+                waitpid(id, NULL, WUNTRACED);
+            }
 
             if (isSigint == 1)
             {
