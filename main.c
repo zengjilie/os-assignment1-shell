@@ -66,238 +66,316 @@ int main()
         char *args[100];
         char *piece = strtok(input, " ");
         int argc = 0;
+
+        int pipeIndex = 0;
+        int hasBackground = 0;
         while (piece != NULL)
         {
             args[argc] = piece;
+
+            if (strcmp(piece, "|") == 0) // check if there is a pipe
+            {
+                pipeIndex = argc;
+            }
+
+            if (strcmp(piece, "&") == 0) // check if there is a background
+            {
+                hasBackground = 1;
+            }
+
             piece = strtok(NULL, " ");
             argc++;
         }
 
-        // Checkers
-        int hasPipe = 0;       // Pipe checker
-        int hasBackground = 0; // Background checker
+        // Building commands
+        char *commandsL[50]; // Left commands
+        char *commandsR[50]; // Right commands
+        if (pipeIndex == 0)
+        { // No pipe
+            int findPartition = 0;
+            for (int i = 0; i < argc; i++)
+            {
+                if (strcmp(args[i], ">") != 0 && strcmp(args[i], "<") != 0 && strcmp(args[i], "2>") != 0)
+                {
+                    if (findPartition == 0)
+                    {
+                        commandsL[i] = args[i];
+                    }
+                }
+                else
+                {
+                    findPartition = 1;
+                    commandsL[i] = NULL;
+                }
+            }
+            if (findPartition == 0)
+            {
+                commandsL[argc] = NULL;
+            }
+        }
+        else
+        { // Has pipe
+            int findPartitionLeft = 0;
+            for (int i = 0; i < pipeIndex; i++)
+            {
+                if (strcmp(args[i], ">") != 0 && strcmp(args[i], "<") != 0 && strcmp(args[i], "2>") != 0)
+                {
+                    if (findPartitionLeft == 0)
+                    {
+                        commandsL[i] = args[i];
+                    }
+                }
+                else
+                {
+                    findPartitionLeft = 1;
+                    commandsL[i] = NULL;
+                }
+            }
+            if (findPartitionLeft == 0)
+            {
+                commandsL[pipeIndex] = NULL;
+            }
 
-        for (int i = 0; i < argc; i++)
-        {
-            if (args[i] == NULL) // stop
+            int findPartitionRight = 0;
+            for (int i = pipeIndex + 1; i < argc; i++)
             {
-                break;
+                if (strcmp(args[i], ">") != 0 && strcmp(args[i], "<") != 0 && strcmp(args[i], "2>") != 0)
+                {
+                    if (findPartitionRight == 0)
+                    {
+                        commandsR[i - pipeIndex - 1] = args[i];
+                    }
+                }
+                else
+                {
+                    findPartitionRight = 1;
+                    commandsR[i - pipeIndex - 1] = NULL;
+                }
             }
-            if (strcmp(args[i], "|") == 0)
+            if (findPartitionRight == 0)
             {
-                hasPipe = 1;
-            }
-            if (strcmp(args[i], "&") == 0)
-            {
-                hasBackground = 1;
+                commandsR[argc - pipeIndex - 1] = NULL;
             }
         }
 
-        //== Start Process ==
+        // pipe test
+        //  ls | cat
+        // cat < t.txt | cat < t.txt
+        // printf("%d\n", pipeIndex);    //->3
+        // printf("%d\n", argc);         //->5
+        // printf("%s\n", commandsL[0]); //->cat
+        // printf("%s\n", commandsL[1]); //-> null
+        // printf("%s\n", commandsR[0]); //-> cat
+        // printf("%s\n", commandsR[1]); // -> null
 
+        //== Start Process ==
         int id = fork();
         if (id == 0)
         {
-            // if there is no pipe, then only one process will be executed
-            if (hasPipe == 0)
+            // If there is no pipe, then only one process will be executed -> commandL
+            if (pipeIndex == 0)
             {
-                for (int i = 1; i < argc; i++)
+                for (int i = 0; i < argc; i++)
                 {
-                    // end of args
-                    if (args[i] == NULL)
-                    {
-                        break;
-                    }
-
                     //== File direction ==
 
                     if (strcmp(args[i], ">") == 0) // >
                     {
                         int file = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
-                        if (file == -1)
-                        {
-                        }
                         dup2(file, STDOUT_FILENO);
                     }
                     else if (strcmp(args[i], "<") == 0) // <
                     {
                         int file = open(args[i + 1], O_RDONLY);
-                        if (file == -1)
-                        {
-                        }
+                        dup2(STDOUT_FILENO, STDERR_FILENO);
                         dup2(file, STDIN_FILENO);
                     }
-                    else if (strcmp(args[i - 1], "cat") == 0)
+                    else if (strcmp(args[i], "2>") == 0) // 2>
                     {
-                        int file = open(args[i], O_RDONLY); // cat + file
-                        if (file == -1)
-                        {
-                        }
-                        dup2(file, STDIN_FILENO);
+                        int file = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
+                        dup2(file, STDERR_FILENO);
                     }
                 }
 
-                // == Execute ==
+                // == Job Control==
 
-                if (strcmp(args[0], "jobs") == 0) // jobs -> shell command
+                // if (strcmp(commandsL[0], "jobs") == 0) // jobs -> shell command
+                // {
+                //     struct job *head = rootJob;
+                //     while (head != NULL)
+                //     {
+                //         printf("%s\t", head->index);
+                //         printf("%c\t", head->nextFg);
+                //         printf("%s\t\t\t", head->state);
+                //         printf("%s\n", head->command);
+                //         head = head->next;
+                //     }
+                // }
+                // else if (strcmp(commandsL[0], "fg") == 0) // fg -> send SIGCONT to the most recent job
+                // {
+                //     // 1. get the most recent job's pid
+                //     // 2. send a SIGCONT to it
+                //     // 3. print the name of the process
+                //     struct job *head = rootJob;
+                //     while (head->next != NULL)
+                //     {
+                //         head = head->next;
+                //     }
+                //     int recentPid = head->pid;
+                //     kill(recentPid, SIGCONT);
+                //     printf("%s\n", head->command);
+                // }
+                // else if (strcmp(commandsL[0], "bg") == 0) // bg ->
+                // {
+                //     // 1. get the most recent stopped job's pid
+                //     // 2. send a SIGCONT to it
+                //     // 3. print the name of the process
+
+                //     struct job *head2 = rootJob;
+                //     struct job *recentStoppedJob;
+                //     while (head2 != NULL)
+                //     {
+                //         if (strcmp(head2->state, "Stopped") == 0)
+                //         {
+                //             recentStoppedJob = head2;
+                //         }
+                //         head2 = head2->next;
+                //     }
+
+                //     printf("%s\n", recentStoppedJob->command);
+                //     kill(head2->pid, SIGCONT);
+                // }
+                // else
                 {
-                    struct job *head = rootJob;
-                    while (head != NULL)
-                    {
-                        printf("%s\t", head->index);
-                        printf("%c\t", head->nextFg);
-                        printf("%s\t\t\t", head->state);
-                        printf("%s\n", head->command);
-                        head = head->next;
-                    }
-                }
-                else if (strcmp(args[0], "fg") == 0) // fg -> send SIGCONT to the most recent job
-                {
-                    // kill(allJobs[jobCount].pid, SIGCONT);
-                }
-                else if (strcmp(args[0], "sleep") == 0) // sleep -> sleep
-                {
-                    execlp(args[0], args[0], args[1], NULL);
-                }
-                else
-                {
-                    execlp(args[0], args[0], NULL);
+                    execvp(commandsL[0], commandsL);
                 }
                 exit(0);
             }
 
             // == Pipe ==
 
-            else if (hasPipe == 1)
+            else
             {
-                // seperate args between left | right
-                char *leftArgs[100];
-                char *rightArgs[100];
-                int lp = 0;
-                int rp = 0;
-                int partition = 0;
-                for (int i = 0; i < sizeof args / sizeof args[0]; i++)
-                {
-                    if (args[i] == NULL)
-                    {
-                        rightArgs[rp] = NULL;
-                        break;
-                    }
+                // commandsL
+                // commandsR
+                // pipeIndex
+                //  pipe
 
-                    if (strcmp(args[i], "|") == 0)
-                    { // reached |
-                        partition = 1;
-                        leftArgs[lp] = NULL; // important
-                        continue;
-                    }
-
-                    if (partition == 0) // haven't reach |
-                    {
-                        leftArgs[lp] = args[i];
-                        lp++;
-                    }
-                    else if (partition == 1)
-                    { // reached |
-                        rightArgs[rp] = args[i];
-                        rp++;
-                    }
-                }
-
-                // pipe
                 int fd[2];
-                // error handling
-                //  if(pipe(fd) );
                 pipe(fd);
+
+                // Right Pipe
                 int id2 = fork();
-                if (id2 == 0) // child
+                if (id2 == 0)
                 {
+                    // == Right Commands ==
                     dup2(fd[0], STDIN_FILENO);
                     close(fd[1]);
-                    // execute all right args
-                    for (int i = 1; i < sizeof rightArgs / sizeof rightArgs[0]; i++)
+                    for (int i = pipeIndex + 1; i < argc; i++)
                     {
-                        // end of args
-                        if (rightArgs[i] == NULL)
+                        //== File direction ==
+                        if (strcmp(args[i], ">") == 0) // >
                         {
-                            break;
-                        }
-
-                        // file direction
-                        if (strcmp(rightArgs[i], ">") == 0) // >
-                        {
-                            int file = open(rightArgs[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
-                            if (file == -1)
-                            {
-                            }
+                            int file = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
                             dup2(file, STDOUT_FILENO);
                         }
-                        else if (strcmp(rightArgs[i], "<") == 0) // <
+                        else if (strcmp(args[i], "<") == 0) // <
                         {
-                            int file = open(rightArgs[i + 1], O_RDONLY);
-                            if (file == -1)
-                            {
-                            }
+                            int file = open(args[i + 1], O_RDONLY);
+                            dup2(STDOUT_FILENO, STDERR_FILENO);
                             dup2(file, STDIN_FILENO);
                         }
-                        else if (strcmp(rightArgs[i - 1], "cat") == 0)
+                        else if (strcmp(args[i], "2>") == 0) // 2>
                         {
-                            int file = open(rightArgs[i], O_RDONLY); // cat file
-                            if (file == -1)
-                            {
-                            }
-                            dup2(file, STDIN_FILENO);
+                            int file = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
+                            dup2(file, STDERR_FILENO);
                         }
                     }
-                    execlp(rightArgs[0], rightArgs[0], NULL);
+                    execvp(commandsR[0], commandsR);
                     exit(0);
                 }
-                else // parent
+                else // Parent
                 {
+                    //== Left Commands ==
                     dup2(fd[1], STDOUT_FILENO);
                     close(fd[0]);
-                    // execue all left args
-                    for (int i = 1; i < sizeof leftArgs / sizeof leftArgs[0]; i++)
+                    for (int i = 0; i < pipeIndex; i++)
                     {
-                        // end of args
-                        if (leftArgs[i] == NULL)
+                        //== File direction ==
+                        if (strcmp(args[i], ">") == 0) // >
                         {
-                            break;
-                        }
-
-                        // file direction
-                        if (strcmp(leftArgs[i], ">") == 0) // >
-                        {
-                            int file = open(leftArgs[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
-                            if (file == -1)
-                            {
-                            }
+                            int file = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
                             dup2(file, STDOUT_FILENO);
                         }
-                        else if (strcmp(leftArgs[i], "<") == 0) // <
+                        else if (strcmp(args[i], "<") == 0) // <
                         {
-                            int file = open(leftArgs[i + 1], O_RDONLY);
-                            if (file == -1)
-                            {
-                            }
+                            int file = open(args[i + 1], O_RDONLY);
+                            dup2(STDOUT_FILENO, STDERR_FILENO);
                             dup2(file, STDIN_FILENO);
                         }
-                        else if (strcmp(leftArgs[i - 1], "cat") == 0)
+                        else if (strcmp(args[i], "2>") == 0) // 2>
                         {
-                            int file = open(leftArgs[i], O_RDONLY); // cat file
-                            if (file == -1)
-                            {
-                            }
-                            dup2(file, STDIN_FILENO);
+                            int file = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
+                            dup2(file, STDERR_FILENO);
                         }
                     }
-                    execlp(leftArgs[0], leftArgs[0], NULL);
-                    wait(NULL);
+                    execvp(commandsL[0], commandsL);
+                    // wait(NULL);
                 }
             }
         }
+
+        // == Parent Process ==
         else
         {
+            //== Job Control==
+            if (strcmp(commandsL[0], "jobs") == 0) // jobs -> shell command
+            {
+                struct job *head = rootJob;
+                while (head != NULL)
+                {
+                    printf("%s\t", head->index);
+                    printf("%c\t", head->nextFg);
+                    printf("%s\t\t\t", head->state);
+                    printf("%s\n", head->command);
+                    head = head->next;
+                }
+            }
+            else if (strcmp(commandsL[0], "fg") == 0) // fg -> send SIGCONT to the most recent job
+            {
+                // 1. get the most recent job's pid
+                // 2. send a SIGCONT to it
+                // 3. print the name of the process
+                struct job *head = rootJob;
+                while (head->next != NULL)
+                {
+                    head = head->next;
+                }
+                int recentPid = head->pid;
+                kill(recentPid, SIGCONT);
+                waitpid(recentPid,WCONTINUED);
+                printf("%s\n", head->command);
+            }
+            else if (strcmp(commandsL[0], "bg") == 0) // bg ->
+            {
+                // 1. get the most recent stopped job's pid
+                // 2. send a SIGCONT to it
+                // 3. print the name of the process
 
+                struct job *head2 = rootJob;
+                struct job *recentStoppedJob;
+                while (head2 != NULL)
+                {
+                    if (strcmp(head2->state, "Stopped") == 0)
+                    {
+                        recentStoppedJob = head2;
+                    }
+                    head2 = head2->next;
+                }
+
+                printf("%s\n", recentStoppedJob->command);
+                kill(head2->pid, SIGCONT);
+            }
             // == Sigint ==
             if (isSigint == 1)
             {
@@ -306,14 +384,68 @@ int main()
 
             if (isSigtstp == 1)
             {
+                // 1. Stop a process
+                // 2. Add to jobs, with state "Stopped"
                 kill(id, SIGTSTP);
             }
 
             // == Record Jobs ==
             // 1. run in background
             // 2. stopped
+
             if (hasBackground == 1)
             {
+                // == Create New Job ==
+
+                struct job *NewJob = (struct job *)malloc(sizeof(struct job));
+
+                if (jobCount == 0) // If threre is not job
+                {
+                    rootJob = NewJob;
+                }
+
+                else // If there already are jobs
+                {
+                    struct job *head = rootJob;
+                    while (head->next != NULL)
+                    {
+                        head->nextFg = '-';
+                        head = head->next;
+                    }
+                    head->nextFg = '-';
+                    head->next = NewJob;
+                }
+
+                // Add new job content
+                jobCount++;
+                char index[4];
+                index[0] = '[';
+                index[1] = jobCount + '0';
+                index[2] = ']';
+                index[3] = '\0';
+                strcpy(NewJob->index, index);
+                NewJob->nextFg = '+';             // nextFg
+                strcpy(NewJob->state, "Running"); // state
+                strcpy(NewJob->command, command); // command
+                NewJob->next = NULL;
+
+                // printf("%s\n", allJobs->command);
+            }
+            else
+            {
+                waitpid(id, NULL, WUNTRACED);
+                // waitpid(id, NULL, WCONTINUED);
+            }
+
+            if (isSigint == 1)
+            {
+                printf("\n");
+            }
+
+            if (isSigtstp == 1)
+            {
+                printf("\n");
+
                 // == Create New Job ==
 
                 struct job *NewJob = (struct job *)malloc(sizeof(struct job));
@@ -347,25 +479,9 @@ int main()
                 index[3] = '\0';
                 strcpy(NewJob->index, index);
                 NewJob->nextFg = '+';             // nextFg
-                strcpy(NewJob->state, "Running"); // state
+                strcpy(NewJob->state, "Stopped"); // state
                 strcpy(NewJob->command, command); // command
                 NewJob->next = NULL;
-
-                // printf("%s\n", allJobs->command);
-            }
-            else
-            {
-                waitpid(id, NULL, WUNTRACED);
-            }
-
-            if (isSigint == 1)
-            {
-                printf("\n");
-            }
-
-            if (isSigtstp == 1)
-            {
-                printf("\n");
             }
             isSigtstp = 0;
             isSigint = 0;

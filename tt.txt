@@ -1,0 +1,10 @@
+do
+do.c
+job
+job1
+job1.c
+main
+main.c
+man
+notes
+t.txt
