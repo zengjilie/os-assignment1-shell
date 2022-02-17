@@ -25,20 +25,24 @@ void sigtstpHandler(int sig)
 }
 
 // Jobs data type
-typedef struct
+struct job
 {
     // index -> [1]
     // current job -> -/+
     // state -> Running/Stopped
     // name of command -> sleep 5 &
+    // pointing to next job
     int pid;
-    char index[10];
+    char index[4];
     char nextFg;
-    char state[50];
-    char command[100];
-} job;
-// Job Count
+    char state[10];
+    char command[2000];
+    struct job *next;
+};
+
 int jobCount = 0;
+// root Jobs
+struct job *rootJob = NULL;
 
 int main()
 {
@@ -47,7 +51,6 @@ int main()
     signal(SIGTSTP, sigtstpHandler);
 
     // Jobs recorder
-    job allJobs[50];
 
     while (1)
     {
@@ -56,23 +59,25 @@ int main()
         char *input;
         input = readline("# ");
 
-        char *args[100]; //"string array"
+        char command[2000];
+        strcpy(command, input);
+
+        //[Warning, strtok will change the input string]
+        char *args[100];
         char *piece = strtok(input, " ");
-        int p = 0;
+        int argc = 0;
         while (piece != NULL)
         {
-            args[p] = piece;
+            args[argc] = piece;
             piece = strtok(NULL, " ");
-            p++;
+            argc++;
         }
-        args[p] = NULL; // Stop pointer
 
         // Checkers
         int hasPipe = 0;       // Pipe checker
         int hasBackground = 0; // Background checker
-        int hasSleep = 0; //sleep checker
 
-        for (int i = 0; i < sizeof args / sizeof args[0]; i++)
+        for (int i = 0; i < argc; i++)
         {
             if (args[i] == NULL) // stop
             {
@@ -86,10 +91,6 @@ int main()
             {
                 hasBackground = 1;
             }
-            if (strcmp(args[i], "sleep") == 0)
-            {
-                hasSleep = 1;
-            }
         }
 
         //== Start Process ==
@@ -100,7 +101,7 @@ int main()
             // if there is no pipe, then only one process will be executed
             if (hasPipe == 0)
             {
-                for (int i = 1; i < sizeof args / sizeof args[0]; i++)
+                for (int i = 1; i < argc; i++)
                 {
                     // end of args
                     if (args[i] == NULL)
@@ -109,6 +110,7 @@ int main()
                     }
 
                     //== File direction ==
+
                     if (strcmp(args[i], ">") == 0) // >
                     {
                         int file = open(args[i + 1], O_WRONLY | O_CREAT | O_TRUNC);
@@ -133,59 +135,38 @@ int main()
                         }
                         dup2(file, STDIN_FILENO);
                     }
-
-                    // == Jobs control ==
-
-                    else if (strcmp(args[i], "&") == 0) // run in bg
-                    {
-                        // disable waitpid
-                    }
-                    else if (strcmp(args[i], "fg" == 0))
-                    {
-                        // send SIGCONT to the most recent job  -> bring it to the foreground
-                    }
-                    else if (strcmp(args[i], "" == 0))
-                    {
-                    }
                 }
 
-                // == Execlp ==
+                // == Execute ==
 
                 if (strcmp(args[0], "jobs") == 0) // jobs -> shell command
                 {
-                    // print all the jobs
-                    for (int i = 0; i < jobCount; i++)
+                    struct job *head = rootJob;
+                    while (head != NULL)
                     {
-                        printf("%s\t%c\t%s\t\t%s\n", allJobs[i].index, allJobs[i].nextFg, allJobs[i].state, allJobs[i].command);
+                        printf("%s\t", head->index);
+                        printf("%c\t", head->nextFg);
+                        printf("%s\t\t\t", head->state);
+                        printf("%s\n", head->command);
+                        head = head->next;
                     }
                 }
                 else if (strcmp(args[0], "fg") == 0) // fg -> send SIGCONT to the most recent job
                 {
-                    kill(allJobs[jobCount].pid, SIGCONT);
+                    // kill(allJobs[jobCount].pid, SIGCONT);
+                }
+                else if (strcmp(args[0], "sleep") == 0) // sleep -> sleep
+                {
+                    execlp(args[0], args[0], args[1], NULL);
                 }
                 else
                 {
-                    // == Construct a job ==
-                    char index[10];
-                    index[0] = '[';
-                    index[1] = jobCount + '0';
-                    index[2] = ']';
-
-                    job NewJob;
-                    NewJob.pid = getpid();
-                    strcpy(NewJob.index, index);
-                    NewJob.nextFg = '+';
-                    strcpy(NewJob.state, "Running");
-                    strcpy(NewJob.command, input);
-
-                    // == Executable ==
                     execlp(args[0], args[0], NULL);
                 }
-
                 exit(0);
             }
 
-            // == pipe ==
+            // == Pipe ==
 
             else if (hasPipe == 1)
             {
@@ -316,7 +297,8 @@ int main()
         }
         else
         {
-            // Sigint
+
+            // == Sigint ==
             if (isSigint == 1)
             {
                 kill(id, SIGKILL);
@@ -327,7 +309,51 @@ int main()
                 kill(id, SIGTSTP);
             }
 
-            if (hasBackground != 1)
+            // == Record Jobs ==
+            // 1. run in background
+            // 2. stopped
+            if (hasBackground == 1)
+            {
+                // == Create New Job ==
+
+                struct job *NewJob = (struct job *)malloc(sizeof(struct job));
+
+                // If threre is not job
+                if (jobCount == 0)
+                {
+                    rootJob = NewJob;
+                }
+                // If there already are jobs
+                else
+                {
+                    struct job *head = rootJob;
+
+                    while (head->next != NULL)
+                    {
+                        head->nextFg = '-';
+                        head = head->next;
+                    }
+                    head->nextFg = '-';
+
+                    head->next = NewJob;
+                }
+
+                // Add new job content
+                jobCount++;
+                char index[4];
+                index[0] = '[';
+                index[1] = jobCount + '0';
+                index[2] = ']';
+                index[3] = '\0';
+                strcpy(NewJob->index, index);
+                NewJob->nextFg = '+';             // nextFg
+                strcpy(NewJob->state, "Running"); // state
+                strcpy(NewJob->command, command); // command
+                NewJob->next = NULL;
+
+                // printf("%s\n", allJobs->command);
+            }
+            else
             {
                 waitpid(id, NULL, WUNTRACED);
             }
