@@ -4,27 +4,11 @@
 #include <sys/wait.h>
 #include <fcntl.h>
 #include <string.h>
-#include <dirent.h>
 #include <readline/readline.h>
 #include <readline/history.h>
 #include <signal.h>
 
-// == Global variables ==
-// Sigint
-int isSigint = 0;
-void sigintHandler(int sig)
-{
-    isSigint = 1;
-}
-
-// Sigtstp
-int isSigtstp = 0;
-void sigtstpHandler(int sig)
-{
-    isSigtstp = 1;
-}
-
-// Jobs data type
+//== Jobs ==
 struct job
 {
     // index -> [1]
@@ -43,6 +27,78 @@ struct job
 int jobCount = 0;
 // root Jobs
 struct job *rootJob = NULL;
+
+// == Signal Handlers ==
+
+// Sigint
+int isSigint = 0;
+void sigintHandler(int sig)
+{
+    isSigint = 1;
+}
+
+// Sigtstp
+int isSigtstp = 0;
+void sigtstpHandler(int sig)
+{
+    isSigtstp = 1;
+}
+
+// Sigchild
+void sigchildHandler(int sig)
+{
+    // 1. get pid of child process
+    // 2. print the child process -> Done
+    // 3. remove it from the linkelist
+
+    int childPid = waitpid(-1, NULL, WUNTRACED | WNOHANG);
+
+    struct job *headA = rootJob;
+    if (headA != NULL)
+    {
+        struct job *headB = rootJob->next;
+        struct job *finishedJob;
+        struct job *finishedJobLeft;
+        struct job *finishedJobRight;
+
+        // base case->1 job
+        if (headB == NULL)
+        {
+
+            if (headA->pid == childPid)
+            {
+                finishedJob = headA;
+            }
+            rootJob = NULL;
+        }
+        else
+        {
+            while (headB != NULL)
+            {
+                if (headB->pid == childPid)
+                {
+                    finishedJob = headB;
+                    finishedJobLeft = headA;
+                    finishedJobRight = headB->next;
+                    break;
+                }
+                headA = headA->next;
+                headB = headB->next;
+            }
+            finishedJobLeft->next = finishedJobRight;
+            finishedJob->next = NULL;
+        }
+
+        printf("%s\t", finishedJob->index);
+        printf("%d\t", finishedJob->pid);
+        printf("%c\t", finishedJob->nextFg);
+        printf("Done\t\t\t");
+        printf("%s", finishedJob->command);
+        fflush(stdout);
+    }
+
+    return;
+}
 
 int main()
 {
@@ -344,10 +400,17 @@ int main()
                 printf("%s\n", recentStoppedJob->command);
                 kill(head2->pid, SIGCONT);
             }
+
             // == Sigint ==
+
             if (isSigint == 1)
             {
                 kill(id, SIGKILL);
+            }
+
+            if (isSigint == 1)
+            {
+                printf("\n");
             }
 
             if (isSigtstp == 1)
@@ -355,59 +418,6 @@ int main()
                 // 1. Stop a process
                 // 2. Add to jobs, with state "Stopped"
                 kill(id, SIGTSTP);
-            }
-
-            // == Record Jobs ==
-            // 1. run in background
-            // 2. stopped
-
-            if (hasBackground == 1)
-            {
-                // == Create New Job ==
-
-                struct job *NewJob = (struct job *)malloc(sizeof(struct job));
-
-                if (jobCount == 0) // If threre is not job
-                {
-                    rootJob = NewJob;
-                }
-
-                else // If there already are jobs
-                {
-                    struct job *head = rootJob;
-                    while (head->next != NULL)
-                    {
-                        head->nextFg = '-';
-                        head = head->next;
-                    }
-                    head->nextFg = '-';
-                    head->next = NewJob;
-                }
-
-                // Add new job content
-                jobCount++;
-                char index[4];
-                index[0] = '[';
-                index[1] = jobCount + '0';
-                index[2] = ']';
-                index[3] = '\0';
-                strcpy(NewJob->index, index);
-                NewJob->nextFg = '+';             // nextFg
-                strcpy(NewJob->state, "Running"); // state
-                strcpy(NewJob->command, command); // command
-                NewJob->next = NULL;
-
-                waitpid(-1, NULL, WNOHANG);
-                // printf("%s\n", allJobs->command);
-            }
-            else
-            {
-                waitpid(-1, NULL, WUNTRACED);
-            }
-
-            if (isSigint == 1)
-            {
-                printf("\n");
             }
 
             if (isSigtstp == 1)
@@ -451,6 +461,57 @@ int main()
                 strcpy(NewJob->command, command); // command
                 NewJob->next = NULL;
             }
+
+            // == Record Jobs ==
+
+            // 1. run in background
+            // 2. stopped
+
+            if (hasBackground == 1)
+            {
+                // == Create New Job ==
+
+                struct job *NewJob = (struct job *)malloc(sizeof(struct job));
+
+                if (jobCount == 0) // If threre is not job
+                {
+                    rootJob = NewJob;
+                }
+
+                else // If there already are jobs
+                {
+                    struct job *head = rootJob;
+                    while (head->next != NULL)
+                    {
+                        head->nextFg = '-';
+                        head = head->next;
+                    }
+                    head->nextFg = '-';
+                    head->next = NewJob;
+                }
+
+                // Add new job content
+                NewJob->pid = id; // pid
+                jobCount++;
+                char index[4];
+                index[0] = '[';
+                index[1] = jobCount + '0';
+                index[2] = ']';
+                index[3] = '\0';
+                strcpy(NewJob->index, index);     // index
+                NewJob->nextFg = '+';             // nextFg
+                strcpy(NewJob->state, "Running"); // state
+                strcpy(NewJob->command, command); // command
+                NewJob->next = NULL;
+
+                waitpid(id, NULL, WNOHANG);
+            }
+            else
+            {
+                waitpid(id, NULL, WUNTRACED);
+                // waitpid(id, NULL, WUNTRACED);
+            }
+
             isSigtstp = 0;
             isSigint = 0;
         }
