@@ -1,5 +1,7 @@
 *.swp
 *.swo
 
-/notes
-/.vscode
+notes
+.vscode
+
+.gitignore
