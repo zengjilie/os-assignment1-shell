@@ -49,7 +49,7 @@ int main()
     // signal handling
     signal(SIGINT, sigintHandler);
     signal(SIGTSTP, sigtstpHandler);
-
+    signal(SIGCHLD, sigchildHandler);
     // Jobs recorder
 
     while (1)
@@ -163,12 +163,13 @@ int main()
         // cat < t.txt | cat < t.txt
         // printf("%d\n", pipeIndex);    //->3
         // printf("%d\n", argc);         //->5
-        // printf("%s\n", commandsL[0]); //->cat
-        // printf("%s\n", commandsL[1]); //-> null
+        // printf("%s\n", commandsL[0]); //->sleep
+        // printf("%s\n", commandsL[1]); //-> 10
         // printf("%s\n", commandsR[0]); //-> cat
         // printf("%s\n", commandsR[1]); // -> null
 
         //== Start Process ==
+
         int id = fork();
         if (id == 0)
         {
@@ -197,59 +198,18 @@ int main()
                     }
                 }
 
-                // == Job Control==
-
-                // if (strcmp(commandsL[0], "jobs") == 0) // jobs -> shell command
-                // {
-                //     struct job *head = rootJob;
-                //     while (head != NULL)
-                //     {
-                //         printf("%s\t", head->index);
-                //         printf("%c\t", head->nextFg);
-                //         printf("%s\t\t\t", head->state);
-                //         printf("%s\n", head->command);
-                //         head = head->next;
-                //     }
-                // }
-                // else if (strcmp(commandsL[0], "fg") == 0) // fg -> send SIGCONT to the most recent job
-                // {
-                //     // 1. get the most recent job's pid
-                //     // 2. send a SIGCONT to it
-                //     // 3. print the name of the process
-                //     struct job *head = rootJob;
-                //     while (head->next != NULL)
-                //     {
-                //         head = head->next;
-                //     }
-                //     int recentPid = head->pid;
-                //     kill(recentPid, SIGCONT);
-                //     printf("%s\n", head->command);
-                // }
-                // else if (strcmp(commandsL[0], "bg") == 0) // bg ->
-                // {
-                //     // 1. get the most recent stopped job's pid
-                //     // 2. send a SIGCONT to it
-                //     // 3. print the name of the process
-
-                //     struct job *head2 = rootJob;
-                //     struct job *recentStoppedJob;
-                //     while (head2 != NULL)
-                //     {
-                //         if (strcmp(head2->state, "Stopped") == 0)
-                //         {
-                //             recentStoppedJob = head2;
-                //         }
-                //         head2 = head2->next;
-                //     }
-
-                //     printf("%s\n", recentStoppedJob->command);
-                //     kill(head2->pid, SIGCONT);
-                // }
-                // else
+                if (strcmp(commandsL[0], "jobs") != 0 && strcmp(commandsL[0], "bg") != 0 && strcmp(commandsL[0], "fg") != 0)
                 {
-                    execvp(commandsL[0], commandsL);
+                    if (strcmp(commandsL[0], "sleep") == 0)
+                    {
+                        execlp(commandsL[0], commandsL[0], commandsL[1], NULL);
+                    }
+                    else
+                    {
+                        execvp(commandsL[0], commandsL);
+                    }
+                    exit(0);
                 }
-                exit(0);
             }
 
             // == Pipe ==
@@ -291,7 +251,15 @@ int main()
                             dup2(file, STDERR_FILENO);
                         }
                     }
-                    execvp(commandsR[0], commandsR);
+
+                    if (strcmp(commandsR[pipeIndex + 1], "sleep") == 0)
+                    {
+                        execlp(commandsR[pipeIndex + 1], commandsR[pipeIndex + 2], commandsR[pipeIndex + 2], NULL);
+                    }
+                    else
+                    {
+                        execvp(commandsR[0], commandsR);
+                    }
                     exit(0);
                 }
                 else // Parent
@@ -353,7 +321,7 @@ int main()
                 }
                 int recentPid = head->pid;
                 kill(recentPid, SIGCONT);
-                waitpid(recentPid,WCONTINUED);
+                // waitpid(recentPid,WCONTINUED);
                 printf("%s\n", head->command);
             }
             else if (strcmp(commandsL[0], "bg") == 0) // bg ->
@@ -429,12 +397,12 @@ int main()
                 strcpy(NewJob->command, command); // command
                 NewJob->next = NULL;
 
+                waitpid(-1, NULL, WNOHANG);
                 // printf("%s\n", allJobs->command);
             }
             else
             {
-                waitpid(id, NULL, WUNTRACED);
-                // waitpid(id, NULL, WCONTINUED);
+                waitpid(-1, NULL, WUNTRACED);
             }
 
             if (isSigint == 1)

@@ -35,6 +35,7 @@ struct jobs
 
 int main(int argc, char *argv[])
 {
+
     // struct jobs *head;
 
     // struct jobs job1;
@@ -129,15 +130,14 @@ int main(int argc, char *argv[])
     //     int parm;
     //     int isFinished = waitpid(id,&parm, WNOHANG);
 
-
     //     printf("finished is %d\n", isFinished);
     //     printf("finished is %d\n",parm);
 
-        while (1)
-        {
-            sleep(2);
-            printf("parent sleep\n");
-        }
+    while (1)
+    {
+        sleep(2);
+        printf("parent sleep\n");
+    }
     // }
 
     // int fd[2];

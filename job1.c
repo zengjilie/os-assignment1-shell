@@ -8,46 +8,52 @@
 #include <readline/history.h>
 #include <signal.h>
 
+void handler(int sig)
+{
+    int child_pid = waitpid(-1, NULL, WUNTRACED | WNOHANG);
+    printf("finished child %d\n",child_pid);
+    return;
+}
 int main()
 {
-    // void delete_zombies(void)
-    // {
-    //     pid_t kidpid;
-    //     int status;
-
-    //     printf("Inside zombie deleter:  ");
-    //     while ((kidpid = waitpid(-1, &status, WNOHANG)) > 0)
-    //     {
-    //         printf("Child %ld terminated\n", kidpid);
-    //     }
-    //     siglongjmp(env, 1);
-    // }
+    signal(SIGCHLD, handler);
 
     int id = fork();
     if (id == 0)
     {
-        sleep(4);
-        exit(2);
+        sleep(2);
+        printf("child finished %d",getpid());
+        exit(0);
     }
     else
     {
         pid_t pid;
         int status;
-        pid = (waitpid(id, &status, WNOHANG));
-        while (pid > 0)
+        waitpid(-1, NULL, WNOHANG);
+        while (1)
         {
-            sleep(4);
-            if (id == 0)
-            {
-                sleep(1);
-                printf("child running");
-            }
-            else if (id > 0)
-            {
-                sleep(1);
-                printf("child finished");
-            }
+            sleep(1);
+            printf("parent run\n");
         }
+        // while (1)
+        // {
+        //     sleep(1);
+        //     printf("status: %d",pid);
+        // }
+        // while (pid > 0)
+        // {
+        //     sleep(4);
+        //     if (id == 0)
+        //     {
+        //         sleep(1);
+        //         printf("status: %d", pid);
+        //     }
+        //     else if (id > 0)
+        //     {
+        //         sleep(1);
+        //         printf("child finished");
+        //     }
+        // }
         // while (waitpid(id, NULL, WNOHANG) > 0)
         // {
         //     printf("finished child\n");
